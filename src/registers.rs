@@ -20,3 +20,28 @@ pub const TEMP: u8 = 0x12;
 pub const CTRL_REG1: u8 = 0x13;
 pub const CTRL_REG2: u8 = 0x14;
 pub const CTRL_REG3: u8 = 0x15;
+
+pub enum Registers {
+    STATUS,
+    OUT_X_MSB,
+    OUT_X_LSB,
+    OUT_Y_MSB,
+    OUT_Y_LSB,
+    OUT_Z_MSB,
+    OUT_Z_LSB,
+    DR_STATUS,
+    F_STATUS,
+    F_SETUP,
+    F_EVENT,
+    INT_SRC_FLAG,
+    WHO_AM_I,
+    CTRL_REG0,
+    RT_CFG,
+    RT_SRC,
+    RT_THS,
+    RT_COUNT,
+    TEMP,
+    CTRL_REG1,
+    CTRL_REG2,
+    CTRL_REG3,
+}
