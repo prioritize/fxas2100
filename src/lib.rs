@@ -28,6 +28,7 @@ where
             .write_read(self.address, &[register], &mut [data])
             .await
             .unwrap();
+        defmt::println!("{}", data);
         data
     }
     pub fn read_temp() {}
