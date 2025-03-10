@@ -16,6 +16,9 @@ impl<I2C> FXAS2100<I2C>
 where
     I2C: I2c,
 {
+    pub fn new(i2c: I2C, address: u8) -> Self {
+        Self { i2c, address }
+    }
     pub fn status() {}
     pub fn set_output_data_rate() {}
     pub fn read_byte() {}
