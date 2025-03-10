@@ -23,7 +23,7 @@ where
     pub fn set_output_data_rate() {}
     pub fn read_byte() {}
     pub async fn read_register(&mut self, register: u8) -> u8 {
-        let data = 0u8;
+        let data = 17u8;
         self.i2c
             .write_read(self.address, &[register], &mut [data])
             .await
