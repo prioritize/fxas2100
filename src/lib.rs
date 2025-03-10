@@ -2,6 +2,7 @@
 pub mod odr;
 pub mod registers;
 use crate::registers::*;
+use defmt::println;
 use embedded_hal_async::i2c::I2c;
 
 pub enum Error<I2cError> {
@@ -24,10 +25,15 @@ where
     pub fn read_byte() {}
     pub async fn read_register(&mut self, register: u8) -> u8 {
         let data = 17u8;
-        self.i2c
+        match self
+            .i2c
             .write_read(self.address, &[register], &mut [data])
             .await
-            .unwrap();
+        {
+            Ok(b) => println!("{}", b),
+            Err(e) => println!("error"),
+        }
+
         defmt::println!("{}", data);
         data
     }
