@@ -24,7 +24,10 @@ where
     pub fn read_byte() {}
     pub async fn read_register(&mut self, register: u8) -> u8 {
         let data = 0u8;
-        self.i2c.write_read(self.address, &[register], &mut [data]);
+        let _ = self
+            .i2c
+            .write_read(self.address, &[register], &mut [data])
+            .await;
         data
     }
     pub fn read_temp() {}
