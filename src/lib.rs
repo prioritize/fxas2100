@@ -27,7 +27,8 @@ where
         let _ = self
             .i2c
             .write_read(self.address, &[register], &mut [data])
-            .await;
+            .await
+            .unwrap();
         data
     }
     pub fn read_temp() {}
