@@ -3,31 +3,37 @@ pub mod odr;
 pub mod registers;
 use crate::registers::*;
 use defmt::println;
-use embedded_hal_async::i2c::{Error as I2cError, I2c};
 
 pub enum Error<I2cError> {
     I2C(I2cError),
 }
 
-pub struct FXAS2100 {
+pub struct FXAS2100<I2C> {
+    i2c: I2C,
     address: u8,
 }
 
-impl embedded_hal_async::i2c::ErrorType for FXAS2100 {
+impl embedded_hal_async::i2c::ErrorType for FXAS2100<I2C>
+where
+    I2C: embedded_hal_async::i2c::I2c,
+{
     type Error = core::convert::Infallible;
 }
-impl I2c for FXAS2100 {
-    async fn transaction(
-        &mut self,
-        address: u8,
-        operations: &mut [embedded_hal_async::i2c::Operation<'_>],
-    ) -> Result<(), Self::Error> {
-        todo!()
-    }
-}
-impl FXAS2100 {
-    pub fn new(address: u8) -> Self {
-        Self { address }
+// impl I2c for FXAS2100<I2C>
+// where
+//     I2C: I2c,
+// {
+//     async fn transaction(
+//         &mut self,
+//         address: u8,
+//         operations: &mut [embedded_hal_async::i2c::Operation<'_>],
+//     ) -> Result<(), Self::Error> {
+//         todo!()
+//     }
+// }
+impl<I2C> FXAS2100<I2C> {
+    pub fn new(i2c: I2C, address: u8) -> Self {
+        Self { i2c, address }
     }
     pub fn status() {}
     pub fn set_output_data_rate() {}
@@ -35,6 +41,7 @@ impl FXAS2100 {
     pub async fn read_register(&mut self, register: u8) -> u8 {
         let data = 17u8;
         match self
+            .i2c
             .write_read(self.address, &[register], &mut [data])
             .await
         {
