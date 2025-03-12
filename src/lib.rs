@@ -13,7 +13,7 @@ pub struct FXAS2100<I2C> {
     address: u8,
 }
 
-impl embedded_hal_async::i2c::ErrorType for FXAS2100<I2C>
+impl<I2C> embedded_hal_async::i2c::ErrorType for FXAS2100<I2C>
 where
     I2C: embedded_hal_async::i2c::I2c,
 {
@@ -31,7 +31,7 @@ where
 //         todo!()
 //     }
 // }
-impl<I2C> FXAS2100<I2C> {
+impl<I2C: embedded_hal_async::i2c::I2c> FXAS2100<I2C> {
     pub fn new(i2c: I2C, address: u8) -> Self {
         Self { i2c, address }
     }
