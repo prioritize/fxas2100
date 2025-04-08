@@ -20,6 +20,14 @@ pub const TEMP: u8 = 0x12;
 pub const CTRL_REG1: u8 = 0x13;
 pub const CTRL_REG2: u8 = 0x14;
 pub const CTRL_REG3: u8 = 0x15;
+pub const ODR_RATE_800: u8 = 0;
+pub const ODR_RATE_400: u8 = 1;
+pub const ODR_RATE_200: u8 = 2;
+pub const ODR_RATE_100: u8 = 3;
+pub const ODR_RATE_50: u8 = 4;
+pub const ODR_RATE_25: u8 = 5;
+pub const ODR_RATE_12HALF: u8 = 6;
+pub const ODR_RATE_12HALF_1: u8 = 7;
 
 pub enum Registers {
     STATUS,
