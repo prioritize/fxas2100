@@ -1,6 +1,6 @@
 pub enum DataRate {
-    EightHundred,
-    FourHundred,
+    EightHundred(const u16: 800),
+    FourHundred(v: 400),
     TwoHundred,
     OneHundred,
     Fifty,

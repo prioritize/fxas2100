@@ -58,7 +58,11 @@ where
     }
     pub fn set_output_data_rate() {}
     pub fn read_byte() {}
-    pub async fn set_odr(&mut self, rate: u8) {}
+    pub async fn set_odr(&mut self, rate: u8) {
+        match rate {
+            
+        }
+    }
     pub async fn read_bytes(&mut self, register: u8, buffer: &mut [u8]) {
         let _ = self.i2c.write_read(self.address, &[register], buffer).await;
     }
@@ -80,14 +84,9 @@ where
     pub fn read_temp() {}
     pub async fn set_active(&mut self) {
         let current_state = self.read_register(crate::registers::CTRL_REG1).await;
-        println!("current state of ctrl_reg1: {}", current_state);
-        let updated_state = current_state | 0b00000010;
-        let messages = [registers::CTRL_REG1, updated_state];
-        println!("updated state: {}", updated_state);
-        let _ = self.i2c.write(self.address, &messages).await;
-        let current_state = self.read_register(crate::registers::CTRL_REG1).await;
-        println!("current state of ctrl_reg1: {}", current_state);
+        let _ = self.i2c.write(self.address, &[registers::CTRL_REG1, current_state | 0b00000010]).await;
     }
+    
     pub fn set_inactive() {}
     pub async fn collect_gyro_data(mut self, collect_signal: Signal<NoopRawMutex, bool>) {
         if collect_signal.signaled() {
