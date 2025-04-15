@@ -5,6 +5,7 @@ use crate::registers::*;
 use defmt::println;
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::signal::Signal;
+use odr::DataRate;
 
 pub enum Error<I2cError> {
     I2C(I2cError),
@@ -58,10 +59,14 @@ where
     }
     pub fn set_output_data_rate() {}
     pub fn read_byte() {}
-    pub async fn set_odr(&mut self, rate: u8) {
-        match rate {
-            
-        }
+    pub async fn set_odr(&mut self, rate: DataRate) {
+        let mut register_state = 0u8;
+        println!("odr_register: {}", register_state);
+        let _ = self
+            .read_bytes(registers::CTRL_REG1, &mut [register_state])
+            .await;
+        register_state |= odr::ODR_MASK;
+        println!("odr_register: {}", register_state);
     }
     pub async fn read_bytes(&mut self, register: u8, buffer: &mut [u8]) {
         let _ = self.i2c.write_read(self.address, &[register], buffer).await;
@@ -82,19 +87,53 @@ where
         data[0]
     }
     pub fn read_temp() {}
-    pub async fn set_active(&mut self) {
+    async fn set_active(&mut self) {
         let current_state = self.read_register(crate::registers::CTRL_REG1).await;
-        let _ = self.i2c.write(self.address, &[registers::CTRL_REG1, current_state | 0b00000010]).await;
+        let _ = self
+            .i2c
+            .write(self.address, &[
+                registers::CTRL_REG1,
+                current_state | 0b00000010,
+            ])
+            .await;
     }
-    
-    pub fn set_inactive() {}
-    pub async fn collect_gyro_data(mut self, collect_signal: Signal<NoopRawMutex, bool>) {
+    pub async fn signal_active(&self) {
+        self.collect_signal.signal(true);
+    }
+    pub async fn signal_inactive(&self) {
+        self.collect_signal.signal(false);
+    }
+
+    async fn set_inactive(&mut self) {
+        let current_state = self.read_register(crate::registers::CTRL_REG1).await;
+        let _ = self.i2c.write(self.address, &[
+            registers::CTRL_REG1,
+            current_state & 0b11111101,
+        ]);
+        self.collect_signal.signal(false);
+    }
+    pub async fn collect_gyro_data(&mut self, collect_signal: Signal<NoopRawMutex, bool>) {
         if collect_signal.signaled() {
             let mut gyro_data = [0u8; 6];
             let _ = self
                 .i2c
                 .write_read(self.address, &[registers::OUT_X_MSB], &mut gyro_data)
                 .await;
+        }
+    }
+    pub async fn state_handler(&mut self) {
+        loop {
+            self.collect_signal.wait().await;
+            match self.collect_signal.signaled() {
+                true => match self.collect_signal.try_take() {
+                    Some(v) => match v {
+                        true => self.set_active().await,
+                        false => self.set_inactive().await,
+                    },
+                    None => println!("Unsuccessful try_take() in fxas::state_handler"),
+                },
+                false => println!("Doing a bunch of stuff for no reason"),
+            }
         }
     }
 }
