@@ -11,8 +11,7 @@ pub enum Error<I2cError> {
     I2C(I2cError),
 }
 
-pub struct FXAS2100<I2C> {
-    pub i2c: I2C,
+pub struct FXAS2100 {
     pub address: u8,
     pub collect_signal: &'static Signal<CriticalSectionRawMutex, bool>,
 }
@@ -35,27 +34,22 @@ pub struct FXAS2100<I2C> {
 //         todo!()
 //     }
 // }
-impl<I2C, E> FXAS2100<I2C>
-where
-    I2C: embedded_hal_async::i2c::I2c<Error = E>,
-{
+impl FXAS2100 {
     pub fn new(
-        i2c: I2C,
         address: u8,
         collect_signal: &'static Signal<CriticalSectionRawMutex, bool>,
     ) -> Self {
         Self {
-            i2c,
             address,
             collect_signal,
         }
     }
     pub fn status() {}
-    pub async fn who_am_i(&mut self) -> u8 {
-        self.read_register(registers::WHO_AM_I).await
+    pub async fn who_am_i<T>(self, &mut i2c: T) -> u8 {
+        self.read_register(registers::WHO_AM_I, T).await
     }
-    pub async fn set_register(&mut self, register: u8, value: u8) {
-        let _ = self.i2c.write(self.address, &[register, value]).await;
+    pub async fn set_register(&self, &mut i2c: I2C, register: u8, value: u8) {
+        let _ = i2c.write(self.address, &[register, value]).await;
     }
     pub fn set_output_data_rate() {}
     pub fn read_byte() {}
@@ -68,17 +62,13 @@ where
         register_state |= odr::ODR_MASK;
         println!("odr_register: {}", register_state);
     }
-    pub async fn read_bytes(&mut self, register: u8, buffer: &mut [u8]) {
-        let _ = self.i2c.write_read(self.address, &[register], buffer).await;
+    pub async fn read_bytes(self, &mut i2c: I2C, register: u8, buffer: &mut [u8]) {
+        let _ = i2c.write_read(self.address, &[register], buffer).await;
     }
 
-    pub async fn read_register(&mut self, register: u8) -> u8 {
+    pub async fn read_register<T>(self, &mut i2c: T: where T:, register: u8) -> u8 {
         let mut data = [0u8; 1];
-        match self
-            .i2c
-            .write_read(self.address, &[register], &mut data)
-            .await
-        {
+        match T.write_read(self.address, &[register], &mut data).await {
             Ok(b) => println!("{}", b),
             Err(e) => println!("error"),
         }
