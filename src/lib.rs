@@ -1,4 +1,5 @@
 #![no_std]
+pub mod commands;
 pub mod odr;
 pub mod registers;
 use crate::registers::*;
