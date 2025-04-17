@@ -3,8 +3,10 @@ pub mod commands;
 pub mod odr;
 pub mod registers;
 use crate::registers::*;
+use commands::GyroCommands;
 use defmt::println;
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy_sync::channel::Channel;
 use embassy_sync::signal::Signal;
 use odr::DataRate;
 
@@ -49,6 +51,67 @@ where
             i2c,
             address,
             collect_signal,
+        }
+    }
+    pub async fn controller_task(
+        &mut self,
+        command_channel: &'static Channel<CriticalSectionRawMutex, GyroCommands, 10>,
+    ) {
+        loop {
+            match command_channel.receive().await {
+                GyroCommands::SetDataRate(data_rate) => todo!(),
+                GyroCommands::ReadRegister(fxasregisters) => todo!(),
+                GyroCommands::Reset => todo!(),
+                GyroCommands::EnableSelfTest => todo!(),
+                GyroCommands::DisableSelfTest => todo!(),
+                GyroCommands::SetToStandby => todo!(),
+                GyroCommands::SetToReady => todo!(),
+                GyroCommands::SetToActive => todo!(),
+                GyroCommands::RouteFIFOInterrupt => todo!(),
+                GyroCommands::EnableFIFOInterrupt => todo!(),
+                GyroCommands::RouteRTInterrupt => todo!(),
+                GyroCommands::EnableRTInterrupt => todo!(),
+                GyroCommands::RouteDRInterrupt => todo!(),
+                GyroCommands::EnableDRInterrupt => todo!(),
+                GyroCommands::SetInterruptLogicPolarity => todo!(),
+                GyroCommands::SetInterruptPushPull => todo!(),
+                GyroCommands::EnableWrapToOne => todo!(),
+                GyroCommands::EnableExternalActiveMode => todo!(),
+                GyroCommands::EnableFullScaleDouble => todo!(),
+                GyroCommands::ReadTemp => todo!(),
+                GyroCommands::SetDebounceCount => todo!(),
+                GyroCommands::CheckLossOfData => todo!(),
+                GyroCommands::CheckNewDataAvailabe => todo!(),
+                GyroCommands::CheckFIFOOverflow => todo!(),
+                GyroCommands::CheckFIFOWatermark => todo!(),
+                GyroCommands::ReadFIFOSampleCounter => todo!(),
+                GyroCommands::SetFIFOMode => todo!(),
+                GyroCommands::SetFIFOWatermark => todo!(),
+                GyroCommands::ReadFIFOEvent => todo!(),
+                GyroCommands::ReadFIFOEventTime => todo!(),
+                GyroCommands::CheckBootComplete => todo!(),
+                GyroCommands::CheckInterruptFIFO => todo!(),
+                GyroCommands::CheckInterruptRT => todo!(),
+                GyroCommands::CheckInterruptDR => todo!(),
+                GyroCommands::CheckWhoAmI => {
+                    let mut data = [0u8; 1];
+                    self.read_bytes(FXASRegisters::WHO_AM_I.to_u8(), &mut data)
+                        .await;
+                }
+                GyroCommands::SetSPIMode => todo!(),
+                GyroCommands::SetBandwidth => todo!(),
+                GyroCommands::EnableHPFilter => todo!(),
+                GyroCommands::SetFullScaleRange => todo!(),
+                GyroCommands::EnableEventLatch => todo!(),
+                GyroCommands::CheckEventFlags => todo!(),
+                GyroCommands::CheckEventActive => todo!(),
+                GyroCommands::CheckZEvent => todo!(),
+                GyroCommands::CheckYEvent => todo!(),
+                GyroCommands::CheckXEvent => todo!(),
+                GyroCommands::SetDebounceCountMode => todo!(),
+                GyroCommands::SetRateThreshold => todo!(),
+                GyroCommands::ReadTemperature => todo!(),
+            }
         }
     }
     pub fn status() {}
