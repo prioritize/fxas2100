@@ -1,8 +1,8 @@
-use crate::{FXASRegisters, odr};
+use crate::{odr, registers::Registers};
 
 pub enum GyroCommands {
     SetDataRate(odr::DataRate),
-    ReadRegister(FXASRegisters),
+    ReadRegister(Registers),
     Reset,
     EnableSelfTest,
     DisableSelfTest,

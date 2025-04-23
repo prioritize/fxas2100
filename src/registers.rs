@@ -81,3 +81,21 @@ impl Registers {
         }
     }
 }
+pub enum Masks {
+    Reset,
+    SelfTest,
+    OutputDataRate,
+    Active,
+    Ready,
+}
+impl Masks {
+    pub const fn to_mask(&self) -> u8 {
+        match self {
+            Masks::Reset => 64,
+            Masks::SelfTest => 32,
+            Masks::OutputDataRate => 28,
+            Masks::Active => 2,
+            Masks::Ready => 1,
+        }
+    }
+}
