@@ -10,10 +10,12 @@ use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Timer};
 use odr::DataRate;
 
+#[derive(PartialEq)]
 pub enum State {
     Active,
     Ready,
     Standby,
+    Error,
 }
 
 pub enum Error<I2cError> {
@@ -23,41 +25,28 @@ pub enum Error<I2cError> {
 pub struct FXAS2100<I2C> {
     pub i2c: I2C,
     pub address: u8,
-    pub collect_signal: &'static Signal<CriticalSectionRawMutex, bool>,
     pub state: State,
 }
 
-// impl<I2C, E> embedded_hal_async::i2c::ErrorType for FXAS2100<I2C>
-// where
-//     I2C: embedded_hal_async::i2c::I2c<Error = E>,
-// {
-//     type Error = core::convert::Infallible;
-// }
-// impl I2c for FXAS2100<I2C>where
-// where
-//     I2C: I2c,
-// {
-//     async fn transaction(
-//         &mut self,
-//         address: u8,
-//         operations: &mut [embedded_hal_async::i2c::Operation<'_>],
-//     ) -> Result<(), Self::Error> {
-//         todo!()
-//     }
-// }
+// This function accepts the bitmask in binary "e.g. - 0b00001111" and the existing value, and will
+// toggle the bits in the mask off in the value and return that value
+const fn toggle_off(mask: u8, value: u8) -> u8 {
+    !mask & value
+}
+// This function accepts the bitmask in binary "e.g. - 0b00001111" and the existing value, and will
+// toggle the bits in the mask on in the value and return that value
+const fn toggle_on(mask: u8, value: u8) -> u8 {
+    mask | value
+}
+
 impl<I2C, E> FXAS2100<I2C>
 where
     I2C: embedded_hal_async::i2c::I2c<Error = E>,
 {
-    pub async fn new(
-        i2c: I2C,
-        address: u8,
-        collect_signal: &'static Signal<CriticalSectionRawMutex, bool>,
-    ) -> Self {
+    pub async fn new(i2c: I2C, address: u8) -> Self {
         let mut fxas = Self {
             i2c,
             address,
-            collect_signal,
             state: State::Standby,
         };
         let mut ctrl_reg = [0u8; 1];
@@ -109,63 +98,47 @@ where
         data[0]
     }
     pub fn read_temp() {}
-    async fn set_active(&mut self) {
+    pub async fn set_active(&mut self) {
         let current_state = self.read_register(CTRL_REG1.to_u8()).await;
         let _ = self
-            .set_register(CTRL_REG1.to_u8(), current_state | 0b00000010)
+            .set_register(CTRL_REG1.to_u8(), toggle_on(0x02, current_state))
             .await;
-        //self.
+        self.state = State::Active;
     }
-    pub async fn signal_active(&self) {
-        self.collect_signal.signal(true);
-    }
-    pub async fn signal_inactive(&self) {
-        self.collect_signal.signal(false);
-    }
-
-    async fn set_inactive(&mut self) {
+    pub async fn set_standby(&mut self) {
         let current_state = self.read_register(CTRL_REG1.to_u8()).await;
         let _ = self
-            .set_register(CTRL_REG1.to_u8(), current_state & 0xFC)
+            .set_register(CTRL_REG1.to_u8(), toggle_off(0x03, current_state))
             .await;
-        self.collect_signal.signal(false);
+        self.state = State::Standby;
     }
-    pub async fn collect_gyro_data(&mut self, collect_signal: Signal<NoopRawMutex, bool>) {
-        if collect_signal.signaled() {
-            let mut gyro_data = [0u8; 6];
-            let _ = self.read_bytes(OUT_X_MSB.to_u8(), &mut gyro_data).await;
-        }
+    pub async fn set_ready(&mut self) {
+        let current_state = self.read_register(CTRL_REG1.to_u8()).await;
+        let _ = self
+            .set_register(CTRL_REG1.to_u8(), toggle_on(0x01, current_state))
+            .await;
+        self.state = State::Ready;
     }
-    pub async fn state_handler(&mut self) {
-        loop {
-            self.collect_signal.wait().await;
-            match self.collect_signal.signaled() {
-                true => match self.collect_signal.try_take() {
-                    Some(v) => match v {
-                        true => self.set_active().await,
-                        false => self.set_inactive().await,
-                    },
-                    None => println!("Unsuccessful try_take() in fxas::state_handler"),
-                },
-                false => println!("Doing a bunch of stuff for no reason"),
-            }
-        }
+    pub async fn collect_gyro_data(&mut self) -> [u8; 6] {
+        let mut data = [0u8; 6];
+        self.read_bytes(OUT_X_MSB.to_u8(), &mut data).await;
+        data
+    }
+    pub async fn enable_self_test(&mut self) {
+        let mut reg_state = [0u8; 1];
+        self.read_bytes(CTRL_REG1.to_u8(), &mut reg_state).await;
+        self.set_register(CTRL_REG1.to_u8(), toggle_on(0x20, reg_state[0]))
+            .await;
     }
 }
 impl<I2C, E> FXAS2100<I2C>
 where
     I2C: embedded_hal::i2c::I2c<Error = E>,
 {
-    pub fn new_blocking(
-        i2c: I2C,
-        address: u8,
-        collect_signal: &'static mut Signal<CriticalSectionRawMutex, bool>,
-        state: State,
-    ) -> Self {
+    pub fn new_blocking(i2c: I2C, address: u8, state: State) -> Self {
         Self {
             i2c,
             address,
-            collect_signal,
             state,
         }
     }
