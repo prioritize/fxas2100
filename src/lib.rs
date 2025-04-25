@@ -8,7 +8,7 @@ use defmt::println;
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Timer};
-use odr::DataRate;
+use odr::{DataRate, ODR_MASK};
 
 #[derive(PartialEq)]
 pub enum State {
@@ -26,15 +26,18 @@ pub struct FXAS2100<I2C> {
     pub i2c: I2C,
     pub address: u8,
     pub state: State,
+    pub data_rate: DataRate,
 }
 
 // This function accepts the bitmask in binary "e.g. - 0b00001111" and the existing value, and will
 // toggle the bits in the mask off in the value and return that value
+#[inline]
 const fn toggle_off(mask: u8, value: u8) -> u8 {
     !mask & value
 }
 // This function accepts the bitmask in binary "e.g. - 0b00001111" and the existing value, and will
 // toggle the bits in the mask on in the value and return that value
+#[inline]
 const fn toggle_on(mask: u8, value: u8) -> u8 {
     mask | value
 }
@@ -48,6 +51,7 @@ where
             i2c,
             address,
             state: State::Standby,
+            data_rate: DataRate::EightHundred,
         };
         let mut ctrl_reg = [0u8; 1];
         fxas.set_register(CTRL_REG1.to_u8(), 0b01000000).await;
@@ -67,22 +71,22 @@ where
     pub async fn set_register(&mut self, register: u8, value: u8) {
         let _ = self.i2c.write(self.address, &[register, value]).await;
     }
-
-    pub fn set_output_data_rate() {}
-    pub fn read_byte() {}
     pub async fn set_odr(&mut self, rate: DataRate) {
+        let ack_rate = rate.to_u8();
         let mut register_state = 0u8;
         println!("odr_register: {}", register_state);
         let _ = self
             .read_bytes(CTRL_REG1.to_u8(), &mut [register_state])
             .await;
-        register_state |= odr::ODR_MASK;
-        println!("odr_register: {}", register_state);
+        println!("current odr setting: {}", register_state & ODR_MASK);
+        register_state = toggle_on(toggle_off(!ODR_MASK, register_state), ack_rate);
+        self.set_register(CTRL_REG1.to_u8(), toggle_on(ODR_MASK, register_state))
+            .await;
+        self.data_rate = rate;
     }
     pub async fn read_bytes(&mut self, register: u8, buffer: &mut [u8]) {
         let _ = self.i2c.write_read(self.address, &[register], buffer).await;
     }
-
     pub async fn read_register(&mut self, register: u8) -> u8 {
         let mut data = [0u8; 1];
         match self
@@ -140,6 +144,7 @@ where
             i2c,
             address,
             state,
+            data_rate: DataRate::EightHundred,
         }
     }
     pub fn blocking_read_register(&mut self, register: u8) -> u8 {
