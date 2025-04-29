@@ -6,7 +6,7 @@ pub mod odr;
 pub mod outputs;
 pub mod registers;
 use crate::registers::Registers::*;
-use defmt::println;
+use defmt::{info, println};
 use embassy_time::Timer;
 use fifo::Mode;
 use masks::Masks;
@@ -19,7 +19,9 @@ pub enum FXASError {
     ResetError,
     FifoConfigureError,
 }
+
 type Result<T> = core::result::Result<T, FXASError>;
+
 #[derive(PartialEq)]
 pub enum State {
     Active,
@@ -66,6 +68,8 @@ where
         let _ = fxas.reset().await;
         fxas
     }
+
+    /// This performs a soft reset on the gyroscope
     pub async fn reset(&mut self) -> Result<()> {
         let mut data = [0u8; 1];
         self.set_register(CtrlReg1.to_u8(), Masks::Reset.to_mask())
@@ -80,34 +84,42 @@ where
             }
         }
     }
-    pub async fn configure_fifo_mode(&mut self, mode: Mode) -> Result<()> {
+    /// This configures the fifo mode, disabled, circular or stop
+    pub async fn set_fifo_mode(&mut self, mode: Mode) -> Result<()> {
         let mut f_setup = [0u8; 1];
         self.set_standby().await;
         self.read_bytes(FSetup.to_u8(), &mut f_setup).await;
         self.set_register(FSetup.to_u8(), toggle_on(f_setup[0], mode.to_u8()))
             .await;
         self.read_bytes(FSetup.to_u8(), &mut f_setup).await;
-        f_setup[0] &= mode.to_u8();
+        f_setup[0] &= mode.to_mask();
 
-        if f_setup[0] != mode.to_u8() {
+        if f_setup[0] != mode.to_mask() {
+            println!("There was an error in trying to set the status register");
             Err(FXASError::FifoConfigureError)
         } else {
+            info!("FSetup: {:b}", f_setup);
             Ok(())
         }
     }
-    pub async fn status(&mut self) -> u8 {
+
+    /// This reads the status register
+    pub async fn get_status(&mut self) -> u8 {
         let mut data = [0u8; 1];
         self.read_bytes(STATUS.to_u8(), &mut data).await;
         data[0]
     }
-    pub async fn who_am_i(&mut self) -> u8 {
+    /// This reads the WHO_AM_I register. Mainly used to validate that the gyroscope is functioning
+    pub async fn get_who_am_i(&mut self) -> u8 {
         self.read_register(WhoAmI.to_u8()).await
     }
+    /// Writes the value provided to the register
     pub async fn set_register(&mut self, register: u8, value: u8) {
         let _ = self.i2c.write(self.address, &[register, value]).await;
     }
+    /// Sets the ODR to the value provided
     pub async fn set_odr(&mut self, rate: DataRate) {
-        let ack_rate = rate.to_u8();
+        let ack_rate = rate.to_mask();
         let mut register_state = 0u8;
         println!("odr_register: {}", register_state);
         let _ = self
@@ -119,9 +131,13 @@ where
             .await;
         self.data_rate = rate;
     }
+
+    /// Reads a byte, or bytes from the gyroscope, does not return the value
     pub async fn read_bytes(&mut self, register: u8, buffer: &mut [u8]) {
         let _ = self.i2c.write_read(self.address, &[register], buffer).await;
     }
+
+    /// Reads a register, and provides the received value back
     pub async fn read_register(&mut self, register: u8) -> u8 {
         let mut data = [0u8; 1];
         match self
@@ -136,11 +152,14 @@ where
         defmt::println!("{}", data);
         data[0]
     }
-    pub async fn read_temp(&mut self) -> Result<u8> {
+    /// Reads the temperature from the gyroscope
+    pub async fn get_temp(&mut self) -> Result<u8> {
         let mut temp = [0u8; 1];
         self.read_bytes(Temp.to_u8(), &mut temp).await;
         Ok(temp[0])
     }
+
+    /// Sets the gyroscope into active mode
     pub async fn set_active(&mut self) {
         let current_state = self.read_register(CtrlReg1.to_u8()).await;
         let _ = self
@@ -148,6 +167,8 @@ where
             .await;
         self.state = State::Active;
     }
+
+    /// Sets the gyroscope into standby mode
     pub async fn set_standby(&mut self) {
         let current_state = self.read_register(CtrlReg1.to_u8()).await;
         let _ = self
@@ -155,6 +176,8 @@ where
             .await;
         self.state = State::Standby;
     }
+
+    /// Sets the gyroscope into ready mode
     pub async fn set_ready(&mut self) {
         let current_state = self.read_register(CtrlReg1.to_u8()).await;
         let _ = self
@@ -162,22 +185,38 @@ where
             .await;
         self.state = State::Ready;
     }
-    pub async fn collect_gyro_data(&mut self) -> [u8; 6] {
+
+    /// Reads the angular data from the gyroscope
+    pub async fn get_gyro_data(&mut self) -> [u8; 6] {
         let mut data = [0u8; 6];
         self.read_bytes(OutXMsb.to_u8(), &mut data).await;
         data
     }
+
+    /// Reads the
     pub async fn get_fifo_count(&mut self) -> u8 {
         let mut sample_count = 0u8;
         self.read_bytes(FStatus.to_u8(), &mut [sample_count]).await;
         sample_count &= Masks::FifoCount.to_mask();
         sample_count
     }
-    pub async fn enable_self_test(&mut self) {
+    pub async fn set_self_test(&mut self) {
         let mut reg_state = [0u8; 1];
         self.read_bytes(CtrlReg1.to_u8(), &mut reg_state).await;
         self.set_register(CtrlReg1.to_u8(), toggle_on(0x20, reg_state[0]))
             .await;
+    }
+    pub async fn get_gyro_data_buffer(&mut self, mut buffer: [u8; 192]) {
+        // Find the amount of data in the buffer
+        let sample_count = self.get_fifo_count().await;
+        println!("Entering");
+        println!("There's {} samples in the FIFO", sample_count);
+        let slice = &mut buffer[0..sample_count as usize];
+        self.read_bytes(OutXMsb.to_u8(), slice).await;
+        let sample_count = self.get_fifo_count().await;
+        println!("There's {} samples in the FIFO", sample_count);
+        println!("Leaving");
+        println!("");
     }
 }
 impl<I2C, E> FXAS2100<I2C>

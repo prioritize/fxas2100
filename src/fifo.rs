@@ -5,11 +5,11 @@ pub enum Mode {
 }
 
 impl Mode {
-    pub const fn to_u8(&self) -> u8 {
+    pub const fn to_mask(&self) -> u8 {
         match self {
-            Mode::Circular => 0b01,
-            Mode::Stop(_) => 0b10,
-            Mode::Disabled => 0b00,
+            Mode::Circular => 64,
+            Mode::Stop(_) => 128,
+            Mode::Disabled => 00,
         }
     }
 }

@@ -70,7 +70,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.6.2"
-source = "git+https://github.com/embassy-rs/embassy#8474e573fbde99adb3b6f0384b4f68d04cf25e9e"
+source = "git+https://github.com/embassy-rs/embassy#1d2f0add77f7344f0060150f1ff4d56f50d5eed5"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -83,7 +83,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.4.0"
-source = "git+https://github.com/embassy-rs/embassy#8474e573fbde99adb3b6f0384b4f68d04cf25e9e"
+source = "git+https://github.com/embassy-rs/embassy#1d2f0add77f7344f0060150f1ff4d56f50d5eed5"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -98,7 +98,7 @@ dependencies = [
 [[package]]
 name = "embassy-time-driver"
 version = "0.2.0"
-source = "git+https://github.com/embassy-rs/embassy#8474e573fbde99adb3b6f0384b4f68d04cf25e9e"
+source = "git+https://github.com/embassy-rs/embassy#1d2f0add77f7344f0060150f1ff4d56f50d5eed5"
 dependencies = [
  "document-features",
 ]
