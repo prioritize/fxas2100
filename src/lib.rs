@@ -6,7 +6,7 @@ pub mod odr;
 pub mod outputs;
 pub mod registers;
 use crate::registers::Registers::*;
-use defmt::{info, println, warn};
+use defmt::{info, println, trace, warn};
 use embassy_time::Timer;
 use fifo::Mode;
 use masks::Masks;
@@ -236,15 +236,17 @@ where
         let sample_count = self.get_fifo_count().await;
         // info!("sample count: {}", sample_count);
         let slice = &mut buffer[0..(sample_count * 6) as usize];
+        trace!("slice length: {}", slice.len());
         match slice.len() {
             0 => {
-                warn!("tried to read zero bytes")
+                warn!("tried to read zero bytes");
+                0
             }
             _ => {
                 self.read_bytes(OutXMsb.to_u8(), slice).await;
+                slice.len() as u8
             }
         }
-        slice[0]
     }
 }
 impl<I2C, E> FXAS2100<I2C>
