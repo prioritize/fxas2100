@@ -231,11 +231,12 @@ where
         self.set_register(CtrlReg1.to_u8(), bits_on(0x20, reg_state[0]))
             .await;
     }
-    pub async fn get_gyro_data_buffer(&mut self, mut buffer: [u8; 192]) -> u8 {
+    pub async fn get_gyro_data_buffer(&mut self, buffer: &mut [u8; 192]) -> u8 {
         // Find the amount of data in the buffer
         let sample_count = self.get_fifo_count().await;
         // info!("sample count: {}", sample_count);
         let slice = &mut buffer[0..(sample_count * 6) as usize];
+
         trace!("slice length: {}", slice.len());
         match slice.len() {
             0 => {
@@ -244,6 +245,7 @@ where
             }
             _ => {
                 self.read_bytes(OutXMsb.to_u8(), slice).await;
+                warn!("slice in fxas21002c: {}", slice);
                 slice.len() as u8
             }
         }
