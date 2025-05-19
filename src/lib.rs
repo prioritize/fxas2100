@@ -6,7 +6,7 @@ pub mod odr;
 pub mod outputs;
 pub mod registers;
 use crate::registers::Registers::*;
-use defmt::{info, println, trace, warn};
+use defmt::{error, info, println, trace, warn};
 use embassy_time::Timer;
 use fifo::Mode;
 use masks::Masks;
@@ -134,6 +134,29 @@ where
         self.read_bytes(STATUS.to_u8(), &mut data).await;
         data[0]
     }
+    /// This reads the odr register
+    pub async fn get_datarate(&mut self) -> u8 {
+        let mut data = [0u8; 1];
+        self.read_bytes(CtrlReg1.to_u8(), &mut data).await;
+        data[0] & ODR_MASK
+    }
+    pub async fn set_watermark(&mut self, value: u8) {
+        if value > 31 {
+            error!("tried to set a watermark value higher than 31");
+            return;
+        }
+        let mut f_setup = [0u8; 1];
+        self.read_bytes(FSetup.to_u8(), &mut f_setup).await;
+        f_setup[0] &= !Masks::FifoWatermark.to_mask();
+        f_setup[0] |= value;
+        self.set_register(FSetup.to_u8(), f_setup[0]).await;
+    }
+    pub async fn enable_watermark_interrupt(&mut self) {
+        self.set_register(CtrlReg2.to_u8(), 0b11000011).await;
+        let mut ctrl_reg2 = [0u8; 1];
+        self.read_bytes(CtrlReg2.to_u8(), &mut ctrl_reg2).await;
+        assert_eq!(ctrl_reg2[0], 0b11000011);
+    }
     /// This reads the WHO_AM_I register. Mainly used to validate that the gyroscope is functioning
     pub async fn get_who_am_i(&mut self) -> u8 {
         self.read_register(WhoAmI.to_u8()).await
@@ -231,24 +254,24 @@ where
         self.set_register(CtrlReg1.to_u8(), bits_on(0x20, reg_state[0]))
             .await;
     }
-    pub async fn get_gyro_data_buffer(&mut self, buffer: &mut [u8; 192]) -> u8 {
-        // Find the amount of data in the buffer
-        let sample_count = self.get_fifo_count().await;
-        // info!("sample count: {}", sample_count);
-        let slice = &mut buffer[0..(sample_count * 6) as usize];
-
-        trace!("slice length: {}", slice.len());
-        match slice.len() {
-            0 => {
-                warn!("tried to read zero bytes");
-                0
-            }
-            _ => {
-                self.read_bytes(OutXMsb.to_u8(), slice).await;
-                warn!("slice in fxas21002c: {}", slice);
-                slice.len() as u8
-            }
-        }
+    pub async fn get_gyro_data_buffer(&mut self, buffer: &mut [u8; 144]) -> u8 {
+        self.read_bytes(OutXMsb.to_u8(), buffer).await;
+        // // Find the amount of data in the buffer
+        // let sample_count = self.get_fifo_count().await;
+        // // info!("sample count: {}", sample_count);
+        // let slice = &mut buffer[0..(sample_count * 6) as usize];
+        //
+        // match slice.len() {
+        //     0 => {
+        //         warn!("tried to read zero bytes");
+        //         0
+        //     }
+        //     _ => {
+        //         self.read_bytes(OutXMsb.to_u8(), slice).await;
+        //         slice.len() as u8
+        //     }
+        // }
+        24
     }
 }
 impl<I2C, E> FXAS2100<I2C>
